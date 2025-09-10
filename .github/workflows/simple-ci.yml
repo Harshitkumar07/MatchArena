@@ -1,4 +1,4 @@
-name: Basic Build Check
+name: Simple CI
 
 on:
   push:
@@ -27,4 +27,3 @@ jobs:
         env:
           CI: false
           GENERATE_SOURCEMAP: false
-

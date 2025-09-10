@@ -4,7 +4,7 @@
 
 **MatchArena** is a production-ready, real-time multi-sport score-tracking and community platform. Track live scores, engage with sports communities, and stay updated with your favorite sports - Cricket, Football, and Kabaddi.
 
-[![Build Status](https://github.com/yourusername/matcharena/workflows/CI/badge.svg)](https://github.com/yourusername/matcharena/actions)
+[![Build Status](https://github.com/Harshitkumar07/MatchArena/workflows/Basic%20Build%20Check/badge.svg)](https://github.com/Harshitkumar07/MatchArena/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🚀 Features
@@ -49,8 +49,8 @@
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/matcharena.git
-cd matcharena
+git clone https://github.com/Harshitkumar07/MatchArena.git
+cd MatchArena
 ```
 
 2. **Install dependencies**

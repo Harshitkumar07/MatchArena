@@ -1,0 +1,30 @@
+{
+  "projects": {
+    "default": "matcharena-app",
+    "staging": "matcharena-staging",
+    "production": "matcharena-prod"
+  },
+  "targets": {
+    "matcharena-dev": {
+      "hosting": {
+        "app": [
+          "matcharena-dev"
+        ]
+      }
+    },
+    "matcharena-staging": {
+      "hosting": {
+        "app": [
+          "matcharena-staging"
+        ]
+      }
+    },
+    "matcharena-prod": {
+      "hosting": {
+        "app": [
+          "matcharena-prod"
+        ]
+      }
+    }
+  }
+}

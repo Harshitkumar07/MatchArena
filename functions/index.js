@@ -1,0 +1,290 @@
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin
+admin.initializeApp();
+
+// Import function modules
+const matchPolling = require('./src/matchPolling');
+const dataSync = require('./src/dataSync');
+const notifications = require('./src/notifications');
+const moderation = require('./src/moderation');
+const analytics = require('./src/analytics');
+const apiEndpoints = require('./src/api');
+const scheduled = require('./src/scheduled');
+const triggers = require('./src/triggers');
+
+// ========================================
+// Scheduled Functions (Cron Jobs)
+// ========================================
+
+// Poll live match data every 1 minute
+exports.pollLiveMatches = functions.pubsub
+  .schedule('every 1 minutes')
+  .onRun(async (context) => {
+    console.log('Polling live matches...');
+    return matchPolling.pollLiveMatches();
+  });
+
+// Poll upcoming matches every 30 minutes
+exports.pollUpcomingMatches = functions.pubsub
+  .schedule('every 30 minutes')
+  .onRun(async (context) => {
+    console.log('Polling upcoming matches...');
+    return matchPolling.pollUpcomingMatches();
+  });
+
+// Update series standings every 10 minutes
+exports.updateSeriesStandings = functions.pubsub
+  .schedule('every 10 minutes')
+  .onRun(async (context) => {
+    console.log('Updating series standings...');
+    return dataSync.updateSeriesStandings();
+  });
+
+// Clean up old data daily at 2 AM
+exports.dailyCleanup = functions.pubsub
+  .schedule('0 2 * * *')
+  .timeZone('UTC')
+  .onRun(async (context) => {
+    console.log('Running daily cleanup...');
+    return scheduled.dailyCleanup();
+  });
+
+// Generate analytics reports weekly
+exports.weeklyAnalytics = functions.pubsub
+  .schedule('0 0 * * 0')
+  .timeZone('UTC')
+  .onRun(async (context) => {
+    console.log('Generating weekly analytics...');
+    return analytics.generateWeeklyReport();
+  });
+
+// ========================================
+// HTTP Triggers (API Endpoints)
+// ========================================
+
+// Main API endpoint
+exports.api = functions.https.onRequest(apiEndpoints.app);
+
+// Webhook endpoints for sports data providers
+exports.cricketWebhook = functions.https.onRequest(async (req, res) => {
+  return matchPolling.handleCricketWebhook(req, res);
+});
+
+exports.footballWebhook = functions.https.onRequest(async (req, res) => {
+  return matchPolling.handleFootballWebhook(req, res);
+});
+
+// Admin endpoints
+exports.adminAPI = functions.https.onCall(async (data, context) => {
+  // Check if user is admin
+  if (!context.auth || !context.auth.token.admin) {
+    throw new functions.https.HttpsError('permission-denied', 'Must be an admin');
+  }
+  return apiEndpoints.handleAdminRequest(data, context);
+});
+
+// ========================================
+// Database Triggers
+// ========================================
+
+// When a new post is created, check for moderation
+exports.onPostCreate = functions.database
+  .ref('/community/posts/{postId}')
+  .onCreate(async (snapshot, context) => {
+    const post = snapshot.val();
+    const postId = context.params.postId;
+    console.log(`New post created: ${postId}`);
+    return moderation.moderatePost(postId, post);
+  });
+
+// When a comment is added, update counts and notify
+exports.onCommentCreate = functions.database
+  .ref('/comments/{type}/{parentId}/{commentId}')
+  .onCreate(async (snapshot, context) => {
+    const comment = snapshot.val();
+    const { type, parentId, commentId } = context.params;
+    console.log(`New comment on ${type}/${parentId}: ${commentId}`);
+    return triggers.handleNewComment(type, parentId, commentId, comment);
+  });
+
+// When a match status changes, send notifications
+exports.onMatchStatusChange = functions.database
+  .ref('/matches/{sport}/{matchId}/status')
+  .onUpdate(async (change, context) => {
+    const { sport, matchId } = context.params;
+    const before = change.before.val();
+    const after = change.after.val();
+    console.log(`Match status changed: ${sport}/${matchId} from ${before} to ${after}`);
+    return notifications.sendMatchStatusNotification(sport, matchId, before, after);
+  });
+
+// When a user follows a match, set up notifications
+exports.onUserFollowMatch = functions.database
+  .ref('/users/{userId}/followedMatches/{matchId}')
+  .onCreate(async (snapshot, context) => {
+    const { userId, matchId } = context.params;
+    console.log(`User ${userId} followed match ${matchId}`);
+    return triggers.handleMatchFollow(userId, matchId);
+  });
+
+// ========================================
+// Auth Triggers
+// ========================================
+
+// When a new user signs up, create their profile
+exports.onUserCreate = functions.auth.user().onCreate(async (user) => {
+  console.log(`New user created: ${user.uid}`);
+  const { uid, email, displayName, photoURL } = user;
+  
+  // Create user profile in database
+  const userProfile = {
+    uid,
+    email,
+    displayName: displayName || email?.split('@')[0] || 'User',
+    photoURL: photoURL || null,
+    createdAt: admin.database.ServerValue.TIMESTAMP,
+    role: 'user',
+    karma: 0,
+    bio: '',
+    favoriteTeams: [],
+    favoriteSports: [],
+    settings: {
+      notifications: {
+        email: true,
+        push: true,
+        matchReminders: true,
+      },
+      privacy: {
+        profilePublic: true,
+        showActivity: true,
+      },
+    },
+  };
+
+  await admin.database().ref(`users/${uid}`).set(userProfile);
+  
+  // Send welcome email
+  return notifications.sendWelcomeEmail(user);
+});
+
+// When a user is deleted, clean up their data
+exports.onUserDelete = functions.auth.user().onDelete(async (user) => {
+  console.log(`User deleted: ${user.uid}`);
+  const { uid } = user;
+  
+  // Delete user data
+  const promises = [
+    admin.database().ref(`users/${uid}`).remove(),
+    admin.database().ref(`userPosts/${uid}`).remove(),
+    admin.database().ref(`userComments/${uid}`).remove(),
+    admin.database().ref(`userFollows/${uid}`).remove(),
+  ];
+  
+  return Promise.all(promises);
+});
+
+// ========================================
+// Callable Functions
+// ========================================
+
+// Report content for moderation
+exports.reportContent = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+  }
+  
+  const { contentType, contentId, reason, details } = data;
+  return moderation.reportContent(context.auth.uid, contentType, contentId, reason, details);
+});
+
+// Get personalized match recommendations
+exports.getMatchRecommendations = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+  }
+  
+  return analytics.getMatchRecommendations(context.auth.uid);
+});
+
+// Update user preferences
+exports.updateUserPreferences = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+  }
+  
+  const { preferences } = data;
+  return triggers.updateUserPreferences(context.auth.uid, preferences);
+});
+
+// ========================================
+// Storage Triggers
+// ========================================
+
+// When an image is uploaded, optimize it
+exports.optimizeImage = functions.storage.object().onFinalize(async (object) => {
+  const filePath = object.name;
+  const contentType = object.contentType;
+  
+  // Only process images
+  if (!contentType || !contentType.startsWith('image/')) {
+    console.log('Not an image, skipping optimization');
+    return null;
+  }
+  
+  console.log(`Optimizing image: ${filePath}`);
+  // Image optimization logic would go here
+  return null;
+});
+
+// ========================================
+// Error Reporting
+// ========================================
+
+// Log errors to monitoring service
+exports.logError = functions.https.onCall(async (data, context) => {
+  const { error, context: errorContext } = data;
+  console.error('Client error:', error, errorContext);
+  
+  // Log to monitoring service
+  return analytics.logClientError(error, errorContext, context.auth?.uid);
+});
+
+// ========================================
+// Export all functions
+// ========================================
+
+module.exports = {
+  // Scheduled
+  pollLiveMatches: exports.pollLiveMatches,
+  pollUpcomingMatches: exports.pollUpcomingMatches,
+  updateSeriesStandings: exports.updateSeriesStandings,
+  dailyCleanup: exports.dailyCleanup,
+  weeklyAnalytics: exports.weeklyAnalytics,
+  
+  // HTTP
+  api: exports.api,
+  cricketWebhook: exports.cricketWebhook,
+  footballWebhook: exports.footballWebhook,
+  adminAPI: exports.adminAPI,
+  
+  // Database Triggers
+  onPostCreate: exports.onPostCreate,
+  onCommentCreate: exports.onCommentCreate,
+  onMatchStatusChange: exports.onMatchStatusChange,
+  onUserFollowMatch: exports.onUserFollowMatch,
+  
+  // Auth Triggers
+  onUserCreate: exports.onUserCreate,
+  onUserDelete: exports.onUserDelete,
+  
+  // Callable
+  reportContent: exports.reportContent,
+  getMatchRecommendations: exports.getMatchRecommendations,
+  updateUserPreferences: exports.updateUserPreferences,
+  logError: exports.logError,
+  
+  // Storage
+  optimizeImage: exports.optimizeImage,
+};

@@ -300,6 +300,9 @@ export const useVoting = (sport, postId, userId) => {
   return { userVote, vote, loading };
 };
 
+// Alias for backward compatibility
+export const useRealtimeDatabase = useRealtimeData;
+
 export default {
   useRealtimeData,
   useRtdbQuery,

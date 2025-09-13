@@ -1,24 +1,32 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useLiveMatches } from '../hooks/useRealtimeDatabase';
-import { SUPPORTED_SPORTS } from '../config/routes';
+import { fetchCricketData } from '../services/api/sports/cricketApi';
 import MatchCard from './MatchCard';
 
 const LiveTicker = ({ sport = 'cricket', maxItems = 5 }) => {
-  const { data: liveMatches, loading } = useLiveMatches(sport);
+  const [liveMatches, setLiveMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const loadMatches = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchCricketData();
+        setLiveMatches(data.live || []);
+      } catch (error) {
+        console.error('Error loading live matches:', error);
+        setLiveMatches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadMatches();
+    const interval = setInterval(loadMatches, 60000);
+    return () => clearInterval(interval);
+  }, [sport]);
 
-  const items = useMemo(() => {
-    if (!liveMatches) return [];
-    // liveMatches may be an object keyed by matchId depending on rules; normalize to array
-    const arr = Array.isArray(liveMatches)
-      ? liveMatches
-      : Object.entries(liveMatches).map(([id, val]) => ({ id, ...val }));
-    // Prefer upcoming soon and currently live
-    return arr
-      .filter((m) => m.status === 'live')
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      .slice(0, maxItems);
-  }, [liveMatches, maxItems]);
+  const items = liveMatches.slice(0, maxItems);
 
   return (
     <div className="w-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">

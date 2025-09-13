@@ -129,6 +129,9 @@ export const SUPPORTED_SPORTS = [
   }
 ];
 
+// Alias for backward compatibility
+export const SPORTS = SUPPORTED_SPORTS;
+
 // Match status configurations
 export const MATCH_STATUS = {
   LIVE: 'live',

@@ -70,10 +70,8 @@ export const isFirebaseConfigured = () => {
 };
 
 // Export Firebase SDK for advanced usage
-export { 
-  getAuth,
-  getDatabase,
-  getFunctions,
-  getAnalytics,
-  getPerformance
-} from 'firebase/app';
+export { getAuth } from 'firebase/auth';
+export { getDatabase } from 'firebase/database';
+export { getFunctions } from 'firebase/functions';
+export { getAnalytics } from 'firebase/analytics';
+export { getPerformance } from 'firebase/performance';

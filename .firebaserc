@@ -1,8 +1,8 @@
 {
   "projects": {
-    "default": "matcharena-app",
-    "staging": "matcharena-staging",
-    "production": "matcharena-prod"
+    "default": "matcharena-app-e3d24",
+    "staging": "matcharena-app-e3d24",
+    "production": "matcharena-app-e3d24"
   },
   "targets": {
     "matcharena-dev": {

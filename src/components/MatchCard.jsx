@@ -47,7 +47,7 @@ const MatchCard = ({ match, sport = 'cricket', compact = false }) => {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-medium truncate">
-                {match.teams?.home || 'Team A'} vs {match.teams?.away || 'Team B'}
+                {match.teams?.home?.name || match.teams?.home || 'Team A'} vs {match.teams?.away?.name || match.teams?.away || 'Team B'}
               </span>
               {getStatusBadge(match.status)}
             </div>
@@ -81,14 +81,15 @@ const MatchCard = ({ match, sport = 'cricket', compact = false }) => {
         {/* Team 1 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {match.teams?.homeImg && (
+            {(match.teams?.home?.logo || match.teams?.homeImg) && (
               <img 
-                src={match.teams.homeImg} 
-                alt={match.teams.home}
-                className="w-8 h-8 rounded-full"
+                src={match.teams?.home?.logo || match.teams?.homeImg} 
+                alt={match.teams?.home?.name || match.teams?.home || 'Team'}
+                className="w-8 h-8 rounded-full object-cover"
+                onError={(e) => { e.target.style.display = 'none' }}
               />
             )}
-            <span className="font-medium">{match.teams?.home || 'Team A'}</span>
+            <span className="font-medium">{match.teams?.home?.name || match.teams?.home || 'Team A'}</span>
           </div>
           {match.scores?.home && (
             <span className="font-semibold">
@@ -101,14 +102,15 @@ const MatchCard = ({ match, sport = 'cricket', compact = false }) => {
         {/* Team 2 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {match.teams?.awayImg && (
+            {(match.teams?.away?.logo || match.teams?.awayImg) && (
               <img 
-                src={match.teams.awayImg} 
-                alt={match.teams.away}
-                className="w-8 h-8 rounded-full"
+                src={match.teams?.away?.logo || match.teams?.awayImg} 
+                alt={match.teams?.away?.name || match.teams?.away || 'Team'}
+                className="w-8 h-8 rounded-full object-cover"
+                onError={(e) => { e.target.style.display = 'none' }}
               />
             )}
-            <span className="font-medium">{match.teams?.away || 'Team B'}</span>
+            <span className="font-medium">{match.teams?.away?.name || match.teams?.away || 'Team B'}</span>
           </div>
           {match.scores?.away && (
             <span className="font-semibold">

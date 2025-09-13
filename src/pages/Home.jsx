@@ -1,17 +1,40 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useTheme } from '../contexts/ThemeContext';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { SUPPORTED_SPORTS, APP_CONFIG } from '../config/routes';
+import { useTheme } from '../contexts/ThemeContext';
+import { APP_CONFIG, SUPPORTED_SPORTS } from '../config/routes';
 import LiveTicker from '../components/LiveTicker';
-import { useLiveMatches, useCommunityPosts } from '../hooks/useRealtimeDatabase';
+import MatchCard from '../components/MatchCard';
+import { fetchCricketData } from '../services/api/sports/cricketApi';
+import toast from 'react-hot-toast';
 
 const Home = () => {
+  const { isAuthenticated } = useAuth();
   const { isDark } = useTheme();
-  const { isAuthenticated, currentUser } = useAuth();
-  const { data: cricketMatches } = useLiveMatches('cricket');
-  const { data: recentPosts } = useCommunityPosts('cricket', { limit: 5 });
+  const [cricketData, setCricketData] = useState({ live: [], upcoming: [], recent: [] });
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const loadCricketData = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchCricketData();
+        setCricketData(data);
+      } catch (error) {
+        console.error('Error loading cricket data:', error);
+        toast.error('Failed to load match data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadCricketData();
+    
+    // Refresh data every minute
+    const interval = setInterval(loadCricketData, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -96,6 +119,63 @@ const Home = () => {
           </div>
         </section>
 
+        {/* Live and Upcoming Matches */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">Cricket Matches</h2>
+            <Link 
+              to="/sport/cricket" 
+              className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+            >
+              View All Matches →
+            </Link>
+          </div>
+          
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Live Matches */}
+              {cricketData.live.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 text-red-500">🔴 Live Now</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {cricketData.live.map((match) => (
+                      <MatchCard key={match.id} match={match} sport="cricket" />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Upcoming Matches */}
+              {cricketData.upcoming.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Upcoming Matches</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {cricketData.upcoming.slice(0, 4).map((match) => (
+                      <MatchCard key={match.id} match={match} sport="cricket" />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Recent Matches */}
+              {cricketData.recent.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Recent Results</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {cricketData.recent.slice(0, 2).map((match) => (
+                      <MatchCard key={match.id} match={match} sport="cricket" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         {/* Recent Community Posts */}
         <section>
           <div className="flex items-center justify-between mb-6">
@@ -108,40 +188,26 @@ const Home = () => {
             </Link>
           </div>
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
-            {recentPosts && Object.keys(recentPosts).length > 0 ? (
-              <div className="space-y-4">
-                {Object.entries(recentPosts).slice(0, 5).map(([id, post]) => (
-                  <Link
-                    key={id}
-                    to={`/community/cricket/post/${id}`}
-                    className={`block p-4 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
-                  >
-                    <h4 className="font-medium mb-1">{post.title}</h4>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} line-clamp-2`}>
-                      {post.content}
-                    </p>
-                    <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                      <span>👍 {post.votes || 0}</span>
-                      <span>💬 {post.commentCount || 0}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  No recent posts. Be the first to start a discussion!
-                </p>
-                {isAuthenticated && (
-                  <Link
-                    to="/community/cricket"
-                    className="mt-4 inline-block px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Create Post
-                  </Link>
-                )}
-              </div>
-            )}
+            <div className="text-center py-8">
+              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                No recent posts. Be the first to start a discussion!
+              </p>
+              {isAuthenticated ? (
+                <Link
+                  to="/community/cricket"
+                  className="mt-4 inline-block px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Create Post
+                </Link>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="mt-4 inline-block px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Sign In to Post
+                </Link>
+              )}
+            </div>
           </div>
         </section>
 

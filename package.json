@@ -53,8 +53,16 @@
     "emulators": "firebase emulators:start",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "seed": "node scripts/seed.mjs",
+    "test:integration": "jest tests/integration --testTimeout=30000",
+    "test:unit": "jest tests/unit --testTimeout=10000",
+    "test:e2e": "cypress run",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "optimize:images": "imagemin 'src/assets/**/*.{jpg,jpeg,png,gif,svg}' --out-dir=build/static/media",
+    "deploy:full": "node scripts/production-deploy.js",
     "deploy:staging": "npm run build && firebase deploy --only hosting:staging",
-    "deploy:prod": "npm run build && firebase deploy --only hosting:production"
+    "deploy:prod": "npm run build && firebase deploy --only hosting:production",
+    "health:check": "node scripts/health-check.js",
+    "performance:audit": "lighthouse --chrome-flags='--headless' --output=json --output-path=performance-report.json"
   },
   "eslintConfig": {
     "extends": [
@@ -101,6 +109,6 @@
     "tailwindcss": "^3.4.14",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^4.9.5"
   }
 }

@@ -13,14 +13,6 @@
 # Install main dependencies
 npm install
 
-# If you see any warnings about missing dependencies, run:
-npm install react-router-dom @tanstack/react-query axios firebase react-hook-form zod @hookform/resolvers dompurify react-hot-toast react-helmet-async date-fns @tanstack/react-virtual classnames workbox-window
-
-# Install dev dependencies
-npm install -D eslint prettier eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-import eslint-plugin-jsx-a11y eslint-config-prettier cross-env @firebase/rules-unit-testing msw playwright firebase-tools husky
-
-# Optional: Install Tailwind plugins
-npm install -D @tailwindcss/forms @tailwindcss/typography @tailwindcss/aspect-ratio
 ```
 
 ### Step 2: Firebase Setup

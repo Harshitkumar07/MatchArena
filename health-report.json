@@ -1,0 +1,83 @@
+{
+  "timestamp": "2025-09-18T01:33:16.355Z",
+  "overall": "unhealthy",
+  "services": {
+    "cricket_cricket_data_api": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "cricket_cricket_series": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "football_football_api_status": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "football_football_leagues": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "basketball_api": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "tennis_api": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "public_sports_api": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "firebase_firebase_hosting": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "firebase_firebase_functions": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "firebase_firebase_database": {
+      "status": "timeout",
+      "error": "Request timeout",
+      "responseTime": 5000
+    },
+    "database_connectivity": {
+      "status": "healthy",
+      "responseTime": 115,
+      "connection": "firebase-realtime"
+    }
+  },
+  "metrics": {
+    "memory": {
+      "rss": 39,
+      "heapTotal": 7,
+      "heapUsed": 6,
+      "external": 2
+    },
+    "cpu": {
+      "user": 0,
+      "system": 0
+    },
+    "nodeVersion": "v22.12.0",
+    "platform": "win32",
+    "arch": "x64",
+    "performance": {
+      "averageAPIResponse": 117,
+      "concurrentRequests": 10,
+      "totalTestTime": 158,
+      "throughput": 63
+    }
+  },
+  "errors": []
+}

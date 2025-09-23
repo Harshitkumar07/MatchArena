@@ -12,6 +12,7 @@ const ProfilePage = lazy(() => import('../pages/Profile'));
 const AdminPage = lazy(() => import('../pages/Admin'));
 const AuthPage = lazy(() => import('../pages/Auth'));
 const NotFoundPage = lazy(() => import('../pages/NotFound'));
+const ApiTestPage = lazy(() => import('../components/ApiTestPage'));
 
 // Route configuration
 export const routes = [

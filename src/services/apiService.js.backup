@@ -1,0 +1,796 @@
+/**
+ * Frontend API Service for MatchArena
+ * Now uses Firebase Functions for secure, real-time sports data
+ */
+
+class APIService {
+  constructor() {
+    // Firebase Functions endpoints
+    this.functionsBase = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:5001/matcharena-app-e3d24/us-central1/sportsApi'
+      : 'https://us-central1-matcharena-app-e3d24.cloudfunctions.net/sportsApi';
+    
+    // Request cache to improve performance
+    this.cache = new Map();
+    this.cacheExpiry = 2 * 60 * 1000; // 2 minutes for live data
+    this.standardCacheExpiry = 10 * 60 * 1000; // 10 minutes for static data
+    
+    // Clear any existing cache on initialization
+    this.clearCache();
+    console.log('🔥 APIService initialized with Firebase Functions backend');
+  }
+  
+  // Clear all cached data
+  clearCache() {
+    this.cache.clear();
+    console.log('🗑️ API cache cleared');
+  }
+
+  // Generic request method with caching for Firebase Functions
+  async makeRequest(endpoint, options = {}) {
+    const url = `${this.functionsBase}${endpoint}`;
+    const cacheKey = endpoint + JSON.stringify(options);
+    const cached = this.cache.get(cacheKey);
+    
+    // Determine cache expiry based on endpoint
+    const isLive = endpoint.includes('/live') || endpoint.includes('matches/live');
+    const expiry = isLive ? this.cacheExpiry : this.standardCacheExpiry;
+    
+    if (cached && Date.now() - cached.timestamp < expiry) {
+      console.log('Cache hit for:', endpoint);
+      return cached.data;
+    }
+
+    try {
+      console.log('Making Firebase Function request to:', url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+
+      if (!response.ok) {
+        throw new Error(`Firebase Function error! status: ${response.status} for ${endpoint}`);
+      }
+
+      const result = await response.json();
+      
+      // Check if the Firebase Function returned success
+      if (!result.success) {
+        throw new Error(result.error || `API request failed for ${endpoint}`);
+      }
+      
+      // Cache the response data
+      this.cache.set(cacheKey, {
+        data: result.data,
+        timestamp: Date.now()
+      });
+
+      return result.data;
+    } catch (error) {
+      console.error('Firebase Function request failed:', endpoint, error);
+      
+      // Return cached data if available, even if expired
+      if (cached) {
+        console.log('Using expired cache due to error for:', endpoint);
+        return cached.data;
+      }
+      
+      // Return empty array/object as fallback
+      return Array.isArray(options.fallback) ? [] : options.fallback || {};
+    }
+  }
+
+  // ============ CRICKET API METHODS ============
+  
+  // Get cricket matches by type (live, upcoming, recent)
+  async getCricketMatches(type = 'live') {
+    try {
+      console.log(`🏏 Fetching ${type} cricket matches...`);
+      return await this.makeRequest(`/cricket/matches/${type}`, { fallback: [] });
+    } catch (error) {
+      console.error(`Error fetching ${type} cricket matches:`, error);
+      return [];
+    }
+  }
+
+  // Get cricket match details
+  async getCricketMatchDetail(matchId) {
+    try {
+      console.log(`🏏 Fetching cricket match detail for ${matchId}...`);
+      return await this.makeRequest(`/cricket/match/${matchId}`);
+    } catch (error) {
+      console.error('Error fetching cricket match detail:', error);
+      return null;
+    }
+  }
+
+  // Get cricket series
+  async getCricketSeries() {
+    try {
+      console.log('🏏 Fetching cricket series...');
+      return await this.makeRequest('/cricket/series', { fallback: [] });
+    } catch (error) {
+      console.error('Error fetching cricket series:', error);
+      return [];
+    }
+  }
+
+  // ============ MULTI-SPORT API METHODS ============
+  
+  // Get all supported sports
+  async getSupportedSports() {
+    try {
+      console.log('🌐 Fetching supported sports list...');
+      return await this.makeRequest('/sports/list', { fallback: [] });
+    } catch (error) {
+      console.error('Error fetching supported sports:', error);
+      return this.getFallbackSportsList();
+    }
+  }
+
+  // Get fixtures for any sport
+  async getSportFixtures(sport, status = null, league = null, season = null) {
+    try {
+      let endpoint = `/sports/${sport}/fixtures`;
+      const params = new URLSearchParams();
+      
+      if (status) params.append('status', status);
+      if (league) params.append('league', league);  
+      if (season) params.append('season', season);
+      
+      if (params.toString()) {
+        endpoint += `?${params.toString()}`;
+      }
+      
+      console.log(`🏈 Fetching ${sport} fixtures...`);
+      return await this.makeRequest(endpoint, { fallback: [] });
+    } catch (error) {
+      console.error(`Error fetching ${sport} fixtures:`, error);
+      return [];
+    }
+  }
+
+  // Get leagues for any sport
+  async getSportLeagues(sport) {
+    try {
+      console.log(`🏆 Fetching ${sport} leagues...`);
+      return await this.makeRequest(`/sports/${sport}/leagues`, { fallback: [] });
+    } catch (error) {
+      console.error(`Error fetching ${sport} leagues:`, error);
+      return [];
+    }
+  }
+
+  // Get all live matches from all sports
+  async getAllLiveMatches() {
+    try {
+      console.log('🔴 Fetching all live matches...');
+      return await this.makeRequest('/matches/live', { fallback: [] });
+    } catch (error) {
+      console.error('Error fetching all live matches:', error);
+      return [];
+    }
+  }
+
+  // Get all upcoming matches from all sports  
+  async getAllUpcomingMatches(days = 7) {
+    try {
+      console.log(`📅 Fetching upcoming matches for ${days} days...`);
+      return await this.makeRequest(`/matches/upcoming?days=${days}`, { fallback: [] });
+    } catch (error) {
+      console.error('Error fetching upcoming matches:', error);
+      return [];
+    }
+  }
+  // ============ DASHBOARD API METHODS ============
+  
+  // Get comprehensive dashboard data
+  async getDashboardData() {
+    try {
+      console.log('📊 Fetching dashboard data...');
+      
+      const [cricketLive, cricketUpcoming, cricketSeries, allLive, allUpcoming, sports] = await Promise.all([
+        this.getCricketMatches('live'),
+        this.getCricketMatches('upcoming'), 
+        this.getCricketSeries(),
+        this.getAllLiveMatches(),
+        this.getAllUpcomingMatches(7),
+        this.getSupportedSports()
+      ]);
+      
+      return {
+        cricket: {
+          live: cricketLive,
+          upcoming: cricketUpcoming,
+          series: cricketSeries
+        },
+        allSports: {
+          live: allLive,
+          upcoming: allUpcoming,
+          supported: sports
+        },
+        summary: {
+          totalLive: allLive.length,
+          totalUpcoming: allUpcoming.length,
+          cricketLive: cricketLive.length,
+          totalSports: sports.length
+        },
+        lastUpdated: Date.now()
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      return {
+        cricket: { live: [], upcoming: [], series: [] },
+        allSports: { live: [], upcoming: [], supported: [] },
+        summary: { totalLive: 0, totalUpcoming: 0, cricketLive: 0, totalSports: 0 },
+        lastUpdated: Date.now(),
+        error: error.message
+      };
+    }
+  }
+
+  // ============ UTILITY METHODS ============
+  
+  // API health check
+  async checkAPIHealth() {
+    try {
+      console.log('🩺 Checking API health...');
+      return await this.makeRequest('/health');
+    } catch (error) {
+      console.error('API health check failed:', error);
+      return { status: 'unhealthy', error: error.message };
+    }
+  }
+
+  // Get API status and configuration
+  async getAPIStatus() {
+    try {
+      console.log('📊 Fetching API status...');
+      return await this.makeRequest('/api/status');
+    } catch (error) {
+      console.error('Error fetching API status:', error);
+      return { configured: false, error: error.message };
+    }
+  }
+
+  // Fallback sports list if API fails
+  getFallbackSportsList() {
+    return [
+      { id: 'football', name: 'Football', icon: '⚽', endpoint: 'football' },
+      { id: 'basketball', name: 'Basketball', icon: '🏀', endpoint: 'basketball' },
+      { id: 'tennis', name: 'Tennis', icon: '🎾', endpoint: 'tennis' },
+      { id: 'hockey', name: 'Hockey', icon: '🏒', endpoint: 'hockey' },
+      { id: 'volleyball', name: 'Volleyball', icon: '🏐', endpoint: 'volleyball' },
+      { id: 'handball', name: 'Handball', icon: '🤾', endpoint: 'handball' },
+      { id: 'rugby', name: 'Rugby', icon: '🏉', endpoint: 'rugby' },
+      { id: 'baseball', name: 'Baseball', icon: '⚾', endpoint: 'baseball' }
+    ];
+  }
+
+  // Group matches by sport
+  groupMatchesBySport(matches) {
+    return matches.reduce((grouped, match) => {
+      const sport = match.sport || 'unknown';
+      if (!grouped[sport]) {
+        grouped[sport] = [];
+      }
+      grouped[sport].push(match);
+      return grouped;
+    }, {});
+  }
+}
+
+// Export singleton instance
+export const apiService = new APIService();
+export default apiService;
+      }
+      
+      throw new Error('No cricket data available');
+    } catch (error) {
+      console.error('❌ SportsDB Cricket error:', error);
+      return [];
+    }
+  }
+
+  async getCricketSeries() {
+    try {
+      const url = `${this.cricketBaseURL}/series?apikey=${this.cricketApiKey}&offset=0`;
+      const response = await this.makeRequest(url);
+      
+      if (response.status === 'success' && response.data) {
+        return response.data.map(series => this.normalizeCricketSeries(series));
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch cricket series:', error);
+      return [];
+    }
+  }
+
+  // Football API methods using ESPN and TheSportsDB
+  async getFootballMatches() {
+    try {
+      console.log('⚽ Fetching real football data from ESPN API...');
+      
+      // Use ESPN API for football (soccer)
+      const espnUrl = `${this.espnApiURL}/soccer/competitions`;
+      const response = await fetch(espnUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ ESPN Football API response:', data);
+        
+        if (data.sports && data.sports[0] && data.sports[0].leagues) {
+          const matches = [];
+          
+          // Focus on Asian leagues and major competitions
+          const targetLeagues = data.sports[0].leagues.filter(league => 
+            league.name.toLowerCase().includes('premier') ||
+            league.name.toLowerCase().includes('champions') ||
+            league.name.toLowerCase().includes('asian') ||
+            league.name.toLowerCase().includes('afc')
+          );
+          
+          for (const league of targetLeagues.slice(0, 4)) {
+            try {
+              const leagueUrl = `${this.espnApiURL}/soccer/competitions/${league.id}/events`;
+              const leagueResponse = await fetch(leagueUrl);
+              
+              if (leagueResponse.ok) {
+                const leagueData = await leagueResponse.json();
+                if (leagueData.events) {
+                  const leagueMatches = leagueData.events.slice(0, 4).map(event => 
+                    this.normalizeESPNFootballMatch(event, league)
+                  );
+                  matches.push(...leagueMatches);
+                }
+              }
+            } catch (leagueError) {
+              console.warn(`Failed to fetch league ${league.name}:`, leagueError);
+            }
+          }
+          
+          if (matches.length > 0) {
+            console.log(`✅ Fetched ${matches.length} real football matches`);
+            return matches;
+          }
+        }
+      }
+      
+      // Fallback to TheSportsDB
+      return await this.getFootballFromSportsDB();
+      
+    } catch (error) {
+      console.error('❌ Football API error:', error);
+      return await this.getFootballFromSportsDB();
+    }
+  }
+  
+  async getFootballFromSportsDB() {
+    try {
+      console.log('⚽ Trying TheSportsDB for football...');
+      // Asian leagues and major competitions
+      const leagues = ['4328', '4329', '4330', '5104']; // Premier League, La Liga, Serie A, Asian Cup
+      const matches = [];
+
+      for (const leagueId of leagues) {
+        try {
+          const url = `${this.sportsDbURL}/eventsnextleague.php?id=${leagueId}`;
+          const response = await fetch(url);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.events) {
+              const leagueMatches = data.events
+                .slice(0, 3)
+                .map(event => this.normalizeFootballMatch(event));
+              matches.push(...leagueMatches);
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch league ${leagueId}:`, error);
+        }
+      }
+
+      console.log(`✅ Fetched ${matches.length} football matches from SportsDB`);
+      return matches;
+    } catch (error) {
+      console.error('❌ SportsDB Football error:', error);
+      return [];
+    }
+  }
+
+  // Basketball matches using ESPN and TheSportsDB
+  async getBasketballMatches() {
+    try {
+      console.log('🏀 Fetching real basketball data from ESPN API...');
+      
+      // Use ESPN API for basketball
+      const espnUrl = `${this.espnApiURL}/basketball/mens-college-basketball/events`;
+      const response = await fetch(espnUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ ESPN Basketball API response:', data);
+        
+        if (data.events) {
+          const matches = data.events.slice(0, 8).map(event => 
+            this.normalizeESPNBasketballMatch(event)
+          );
+          
+          if (matches.length > 0) {
+            console.log(`✅ Fetched ${matches.length} real basketball matches`);
+            return matches;
+          }
+        }
+      }
+      
+      // Fallback to TheSportsDB
+      return await this.getBasketballFromSportsDB();
+      
+    } catch (error) {
+      console.error('❌ Basketball API error:', error);
+      return await this.getBasketballFromSportsDB();
+    }
+  }
+  
+  async getBasketballFromSportsDB() {
+    try {
+      console.log('🏀 Trying TheSportsDB for basketball...');
+      // NBA and other basketball leagues
+      const leagues = ['4387', '4388', '4480']; // NBA, Euroleague, CBA
+      const matches = [];
+      
+      for (const leagueId of leagues) {
+        try {
+          const url = `${this.sportsDbURL}/eventsnextleague.php?id=${leagueId}`;
+          const response = await fetch(url);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.events) {
+              const leagueMatches = data.events
+                .slice(0, 4)
+                .map(event => this.normalizeBasketballMatch(event));
+              matches.push(...leagueMatches);
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch basketball league ${leagueId}:`, error);
+        }
+      }
+      
+      console.log(`✅ Fetched ${matches.length} basketball matches from SportsDB`);
+      return matches;
+    } catch (error) {
+      console.error('❌ SportsDB Basketball error:', error);
+      return [];
+    }
+  }
+
+  // Multi-sport matches (Badminton, Tennis, etc.)
+  async getMultiSportMatches(sport) {
+    try {
+      console.log(`🏸 Fetching real ${sport} data from TheSportsDB...`);
+      
+      const sportLeagueMap = {
+        'badminton': '4420',
+        'tennis': '4421', 
+        'tableTennis': '4422',
+        'volleyball': '4423'
+      };
+
+      const leagueId = sportLeagueMap[sport];
+      if (!leagueId) {
+        console.warn(`No league ID found for sport: ${sport}`);
+        return [];
+      }
+
+      const url = `${this.sportsDbURL}/eventsnextleague.php?id=${leagueId}`;
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.events) {
+          const matches = data.events
+            .slice(0, 8)
+            .map(event => this.normalizeMultiSportMatch(event, sport));
+          
+          console.log(`✅ Fetched ${matches.length} real ${sport} matches`);
+          return matches;
+        }
+      }
+      
+      console.warn(`❌ No ${sport} data available`);
+      return [];
+    } catch (error) {
+      console.error(`❌ Failed to fetch ${sport} matches:`, error);
+      return [];
+    }
+  }
+
+  // Data normalization methods for ESPN API
+  normalizeESPNCricketMatch(event, league) {
+    return {
+      id: event.id,
+      name: event.name || `${event.competitions?.[0]?.competitors?.[0]?.team?.displayName || 'Team A'} vs ${event.competitions?.[0]?.competitors?.[1]?.team?.displayName || 'Team B'}`,
+      status: event.status?.type?.description || 'upcoming',
+      teams: [
+        {
+          name: event.competitions?.[0]?.competitors?.[0]?.team?.displayName || 'Team A',
+          shortName: event.competitions?.[0]?.competitors?.[0]?.team?.abbreviation || 'TA',
+          img: event.competitions?.[0]?.competitors?.[0]?.team?.logo || ''
+        },
+        {
+          name: event.competitions?.[0]?.competitors?.[1]?.team?.displayName || 'Team B', 
+          shortName: event.competitions?.[0]?.competitors?.[1]?.team?.abbreviation || 'TB',
+          img: event.competitions?.[0]?.competitors?.[1]?.team?.logo || ''
+        }
+      ],
+      scores: this.formatESPNScores(event.competitions?.[0]?.competitors),
+      venue: event.competitions?.[0]?.venue?.fullName || 'TBD',
+      date: event.date,
+      series: league.name,
+      isAsianMatch: this.isAsianESPNMatch(event, league)
+    };
+  }
+  
+  normalizeESPNFootballMatch(event, league) {
+    return {
+      id: event.id,
+      teams: {
+        home: {
+          name: event.competitions?.[0]?.competitors?.[0]?.team?.displayName || 'Home Team',
+          logo: event.competitions?.[0]?.competitors?.[0]?.team?.logo || ''
+        },
+        away: {
+          name: event.competitions?.[0]?.competitors?.[1]?.team?.displayName || 'Away Team',
+          logo: event.competitions?.[0]?.competitors?.[1]?.team?.logo || ''
+        }
+      },
+      goals: {
+        home: event.competitions?.[0]?.competitors?.[0]?.score || 0,
+        away: event.competitions?.[0]?.competitors?.[1]?.score || 0
+      },
+      league: {
+        name: league.name,
+        country: league.midsizeName || 'International',
+        logo: league.logos?.[0]?.href || ''
+      },
+      fixture: {
+        date: event.date,
+        timestamp: new Date(event.date).getTime() / 1000
+      },
+      status: {
+        short: event.status?.type?.abbreviation || 'NS'
+      }
+    };
+  }
+  
+  normalizeESPNBasketballMatch(event) {
+    return {
+      id: event.id,
+      teams: {
+        home: {
+          name: event.competitions?.[0]?.competitors?.[0]?.team?.displayName || 'Home Team',
+          logo: event.competitions?.[0]?.competitors?.[0]?.team?.logo || ''
+        },
+        away: {
+          name: event.competitions?.[0]?.competitors?.[1]?.team?.displayName || 'Away Team',
+          logo: event.competitions?.[0]?.competitors?.[1]?.team?.logo || ''
+        }
+      },
+      scores: {
+        home: { total: event.competitions?.[0]?.competitors?.[0]?.score || 0 },
+        away: { total: event.competitions?.[0]?.competitors?.[1]?.score || 0 }
+      },
+      status: event.status?.type?.description?.toLowerCase() || 'upcoming',
+      league: {
+        name: 'College Basketball'
+      },
+      date: new Date(event.date).getTime(),
+      venue: event.competitions?.[0]?.venue?.fullName || 'TBD',
+      isAsianMatch: false
+    };
+  }
+  
+  normalizeSportsDBCricketMatch(event) {
+    return {
+      id: event.idEvent,
+      name: event.strEvent,
+      status: event.strStatus === 'Match Finished' ? 'completed' : 'upcoming',
+      teams: [
+        {
+          name: event.strHomeTeam,
+          shortName: event.strHomeTeam?.substring(0, 3) || 'TA',
+          img: event.strHomeTeamBadge || ''
+        },
+        {
+          name: event.strAwayTeam,
+          shortName: event.strAwayTeam?.substring(0, 3) || 'TB',
+          img: event.strAwayTeamBadge || ''
+        }
+      ],
+      scores: [`${event.strHomeTeam}: ${event.intHomeScore || 0}`, `${event.strAwayTeam}: ${event.intAwayScore || 0}`],
+      venue: event.strVenue || 'TBD',
+      date: event.dateEvent,
+      series: event.strLeague || 'Cricket Match',
+      isAsianMatch: this.isAsianSportsDBMatch(event)
+    };
+  }
+
+  // Data normalization methods (legacy)
+  normalizeCricketMatch(match) {
+    return {
+      id: match.id,
+      name: match.name,
+      status: match.status,
+      teams: [
+        {
+          name: match.teamInfo?.[0]?.name || 'Team A',
+          shortName: match.teamInfo?.[0]?.shortname || 'TA',
+          img: match.teamInfo?.[0]?.img || ''
+        },
+        {
+          name: match.teamInfo?.[1]?.name || 'Team B', 
+          shortName: match.teamInfo?.[1]?.shortname || 'TB',
+          img: match.teamInfo?.[1]?.img || ''
+        }
+      ],
+      scores: match.score || [],
+      venue: match.venue,
+      date: match.dateTimeGMT,
+      series: match.series,
+      isAsianMatch: this.isAsianCricketMatch(match)
+    };
+  }
+
+  normalizeFootballMatch(event) {
+    return {
+      id: event.idEvent,
+      teams: {
+        home: {
+          name: event.strHomeTeam,
+          logo: event.strHomeTeamBadge
+        },
+        away: {
+          name: event.strAwayTeam,
+          logo: event.strAwayTeamBadge
+        }
+      },
+      fixture: {
+        date: event.dateEvent,
+        timestamp: new Date(event.dateEvent).getTime() / 1000
+      },
+      goals: {
+        home: event.intHomeScore || 0,
+        away: event.intAwayScore || 0
+      },
+      league: {
+        name: event.strLeague,
+        country: event.strCountry,
+        logo: event.strLeagueBadge
+      },
+      status: {
+        short: event.strStatus
+      }
+    };
+  }
+
+  normalizeBasketballMatch(event) {
+    return {
+      id: event.idEvent,
+      teams: {
+        home: {
+          name: event.strHomeTeam,
+          logo: event.strHomeTeamBadge
+        },
+        away: {
+          name: event.strAwayTeam,
+          logo: event.strAwayTeamBadge
+        }
+      },
+      scores: {
+        home: { total: event.intHomeScore || 0 },
+        away: { total: event.intAwayScore || 0 }
+      },
+      status: event.strStatus === 'Match Finished' ? 'completed' : 'upcoming',
+      league: {
+        name: event.strLeague
+      },
+      date: new Date(event.dateEvent).getTime(),
+      isAsianMatch: this.isAsianBasketballMatch(event)
+    };
+  }
+
+  normalizeMultiSportMatch(event, sport) {
+    return {
+      id: event.idEvent,
+      sport: sport,
+      players: {
+        player1: {
+          name: event.strHomeTeam,
+          country: event.strHomeTeam.split(' ')[0] || 'Unknown'
+        },
+        player2: {
+          name: event.strAwayTeam,
+          country: event.strAwayTeam.split(' ')[0] || 'Unknown'
+        }
+      },
+      tournament: event.strEvent,
+      venue: event.strVenue,
+      status: event.strStatus === 'Match Finished' ? 'completed' : 'upcoming',
+      startsAt: new Date(event.dateEvent).getTime(),
+      isAsianTournament: this.isAsianTournament(event)
+    };
+  }
+
+  // Helper methods for ESPN API
+  formatESPNScores(competitors) {
+    if (!competitors) return [];
+    return competitors.map(comp => 
+      `${comp.team?.displayName || 'Team'}: ${comp.score || 0}`
+    );
+  }
+  
+  isAsianESPNMatch(event, league) {
+    const asianKeywords = ['Asia', 'India', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'IPL', 'PSL', 'BPL', 'LPL'];
+    const eventName = (event.name || '').toLowerCase();
+    const leagueName = (league.name || '').toLowerCase();
+    const venue = (event.competitions?.[0]?.venue?.address?.country || '').toLowerCase();
+    
+    return asianKeywords.some(keyword => 
+      eventName.includes(keyword.toLowerCase()) || 
+      leagueName.includes(keyword.toLowerCase()) ||
+      venue.includes('india') || venue.includes('pakistan') || 
+      venue.includes('bangladesh') || venue.includes('sri lanka')
+    );
+  }
+  
+  isAsianSportsDBMatch(event) {
+    const asianKeywords = ['Asia', 'India', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'China', 'Japan', 'Korea'];
+    const eventName = (event.strEvent || '').toLowerCase();
+    const league = (event.strLeague || '').toLowerCase();
+    const country = (event.strCountry || '').toLowerCase();
+    
+    return asianKeywords.some(keyword => 
+      eventName.includes(keyword.toLowerCase()) || 
+      league.includes(keyword.toLowerCase()) ||
+      country.includes(keyword.toLowerCase())
+    );
+  }
+
+  // Helper methods to identify Asian matches/tournaments (legacy)
+  isAsianCricketMatch(match) {
+    const asianKeywords = ['Asia Cup', 'IPL', 'PSL', 'BPL', 'LPL', 'CPL', 'India', 'Pakistan', 'Bangladesh', 'Sri Lanka'];
+    const matchName = (match.name || '').toLowerCase();
+    const series = (match.series || '').toLowerCase();
+    return asianKeywords.some(keyword => 
+      matchName.includes(keyword.toLowerCase()) || 
+      series.includes(keyword.toLowerCase())
+    );
+  }
+
+  isAsianBasketballMatch(event) {
+    const asianKeywords = ['China', 'Japan', 'Korea', 'Philippines', 'CBA', 'B.League', 'KBL', 'PBA'];
+    const eventName = (event.strEvent || '').toLowerCase();
+    const league = (event.strLeague || '').toLowerCase();
+    return asianKeywords.some(keyword => 
+      eventName.includes(keyword.toLowerCase()) || 
+      league.includes(keyword.toLowerCase())
+    );
+  }
+
+  isAsianTournament(event) {
+    const asianKeywords = ['Asian', 'China', 'Japan', 'Korea', 'Malaysia', 'Indonesia', 'Thailand', 'Singapore'];
+    const eventName = (event.strEvent || '').toLowerCase();
+    return asianKeywords.some(keyword => eventName.includes(keyword.toLowerCase()));
+  }
+
+}
+
+export default new APIService();

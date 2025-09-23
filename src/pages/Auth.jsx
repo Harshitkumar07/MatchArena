@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_CONFIG } from '../config/routes';
 import toast from 'react-hot-toast';
+import FirebaseTest from '../components/FirebaseTest';
 
 // Validation schemas
 const loginSchema = z.object({
@@ -116,6 +117,9 @@ const Auth = () => {
         <title>{isLogin ? 'Sign In' : 'Sign Up'} - {APP_CONFIG.appName}</title>
         <meta name="description" content={`${isLogin ? 'Sign in' : 'Create an account'} to access live sports scores and join the community`} />
       </Helmet>
+
+      {/* Temporary Firebase Test Component */}
+      {process.env.NODE_ENV === 'development' && <FirebaseTest />}
 
       <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className={`max-w-md w-full space-y-8 ${isDark ? 'bg-gray-800' : 'bg-white'} p-8 rounded-xl shadow-xl`}>

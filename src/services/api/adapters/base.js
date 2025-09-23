@@ -21,7 +21,7 @@ export class BaseSportAdapter {
    * @param {number} days - Number of days to look ahead
    * @returns {Promise<Array>} Array of normalized match objects
    */
-  async getUpcomingMatches(days = 7) {
+  async getUpcomingMatches(_days = 7) {
     throw new Error('getUpcomingMatches must be implemented by subclass');
   }
 
@@ -30,7 +30,7 @@ export class BaseSportAdapter {
    * @param {number} days - Number of days to look back
    * @returns {Promise<Array>} Array of normalized match objects
    */
-  async getRecentMatches(days = 7) {
+  async getRecentMatches(_days = 7) {
     throw new Error('getRecentMatches must be implemented by subclass');
   }
 
@@ -39,7 +39,7 @@ export class BaseSportAdapter {
    * @param {string} matchId - Match identifier
    * @returns {Promise<Object>} Normalized match detail object
    */
-  async getMatchDetail(matchId) {
+  async getMatchDetail(_matchId) {
     throw new Error('getMatchDetail must be implemented by subclass');
   }
 
@@ -56,7 +56,7 @@ export class BaseSportAdapter {
    * @param {string} seriesId - Series identifier
    * @returns {Promise<Object>} Normalized series detail object
    */
-  async getSeriesDetail(seriesId) {
+  async getSeriesDetail(_seriesId) {
     throw new Error('getSeriesDetail must be implemented by subclass');
   }
 
@@ -65,7 +65,7 @@ export class BaseSportAdapter {
    * @param {string} teamId - Team identifier
    * @returns {Promise<Object>} Team information object
    */
-  async getTeamInfo(teamId) {
+  async getTeamInfo(_teamId) {
     throw new Error('getTeamInfo must be implemented by subclass');
   }
 
@@ -74,7 +74,7 @@ export class BaseSportAdapter {
    * @param {string} playerId - Player identifier
    * @returns {Promise<Object>} Player information object
    */
-  async getPlayerInfo(playerId) {
+  async getPlayerInfo(_playerId) {
     throw new Error('getPlayerInfo must be implemented by subclass');
   }
 
@@ -83,7 +83,7 @@ export class BaseSportAdapter {
    * @param {string} query - Search query
    * @returns {Promise<Array>} Array of matching results
    */
-  async searchMatches(query) {
+  async searchMatches(_query) {
     throw new Error('searchMatches must be implemented by subclass');
   }
 
@@ -92,7 +92,7 @@ export class BaseSportAdapter {
    * @param {Object} rawMatch - Raw match data from provider
    * @returns {Object} Normalized match object
    */
-  normalizeMatch(rawMatch) {
+  normalizeMatch(_rawMatch) {
     throw new Error('normalizeMatch must be implemented by subclass');
   }
 
@@ -101,7 +101,7 @@ export class BaseSportAdapter {
    * @param {Object} rawSeries - Raw series data from provider
    * @returns {Object} Normalized series object
    */
-  normalizeSeries(rawSeries) {
+  normalizeSeries(_rawSeries) {
     throw new Error('normalizeSeries must be implemented by subclass');
   }
 

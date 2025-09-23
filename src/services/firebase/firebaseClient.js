@@ -1,21 +1,27 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
+import { getDatabase } from 'firebase/database';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions';
 import { getPerformance } from 'firebase/performance';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyAHih9ia5LOwbTp8vlBn5dUQKeTsaPFhzI",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "matcharena-app-e3d24.firebaseapp.com",
+  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://matcharena-app-e3d24-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "matcharena-app-e3d24",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "matcharena-app-e3d24.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "678280737385",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:678280737385:web:201a80588904e517aea8f8",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-BYTZ8KDE5W"
 };
+
+// Debug: Log configuration (remove in production)
+console.log('Firebase Config:', {
+  ...firebaseConfig,
+  apiKey: firebaseConfig.apiKey ? '***' + firebaseConfig.apiKey.slice(-4) : 'MISSING',
+});
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -41,9 +47,10 @@ if (process.env.NODE_ENV === 'production') {
   performance = getPerformance(app);
 }
 
-// Connect to emulators in development
-if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-  // Check if we haven't already connected to emulators
+// Connect to emulators in development - DISABLED for now
+// Uncomment below to use emulators
+/*
+if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_USE_EMULATORS === 'true') {
   if (!window._firebaseEmulatorsConnected) {
     try {
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
@@ -56,6 +63,7 @@ if (process.env.NODE_ENV === 'development' && window.location.hostname === 'loca
     }
   }
 }
+*/
 
 export { app, analytics, performance };
 

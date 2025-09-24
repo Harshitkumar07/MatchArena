@@ -7,8 +7,8 @@ import { BaseSportAdapter, MATCH_STATUS, AdapterError, ERROR_CODES } from '../ad
 
 // Firebase Functions endpoint
 const FUNCTIONS_BASE = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:5001/matcharena-app-e3d24/us-central1/sportsApi'
-  : 'https://us-central1-matcharena-app-e3d24.cloudfunctions.net/sportsApi';
+  ? 'http://localhost:5001/matcharena-app-e3d24/us-central1/api'
+  : '/api';
 
 class MultiSportAPIService extends BaseSportAdapter {
   constructor() {
@@ -161,10 +161,7 @@ class MultiSportAPIService extends BaseSportAdapter {
   // Get all upcoming matches from multiple sports
   async getAllUpcomingMatches(days = 7, sports = ['football', 'basketball', 'tennis', 'hockey']) {
     try {
-      const endpoint = `/matches/upcoming?days=${days}`;
-      const cacheKey = `all_upcoming_matches_${days}days`;
-      
-      return await this.fetchFromFunction(endpoint, cacheKey);
+      return await this.fetchFromFunction('/sports/popular?status=upcoming', 'all_upcoming_matches');
     } catch (error) {
       console.error('Error fetching all upcoming matches:', error);
       return [];

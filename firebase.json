@@ -2,6 +2,10 @@
   "database": {
     "rules": "database.rules.json"
   },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "config/firestore.indexes.json"
+  },
   "hosting": {
     "public": "build",
     "ignore": [
@@ -10,6 +14,13 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/api/**",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
       {
         "source": "**",
         "destination": "/index.html"
@@ -76,18 +87,6 @@
       "predeploy": [],
       "runtime": "nodejs20",
       "codebase": "default"
-    },
-    {
-      "source": "firebase-codebase",
-      "codebase": "firebase-codebase",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ],
-      "predeploy": []
     }
   ],
   "emulators": {

@@ -40,8 +40,8 @@
     "test:ci": "CI=true react-scripts test --coverage --watchAll=false",
     "test:coverage": "npm test -- --coverage --watchAll=false",
     "test:smoke": "cypress run --spec cypress/e2e/smoke.cy.js",
-    "cypress:open": "cypress open",
-    "cypress:run": "cypress run",
+    "cypress:open": "cypress open --config-file config/cypress.config.js",
+    "cypress:run": "cypress run --config-file config/cypress.config.js",
     "firebase:init": "firebase init",
     "firebase:deploy": "firebase deploy",
     "firebase:deploy:hosting": "firebase deploy --only hosting",
@@ -62,7 +62,10 @@
     "deploy:staging": "npm run build && firebase deploy --only hosting:staging",
     "deploy:prod": "npm run build && firebase deploy --only hosting:production",
     "health:check": "node scripts/health-check.js",
-    "performance:audit": "lighthouse --chrome-flags='--headless' --output=json --output-path=performance-report.json"
+    "performance:audit": "lighthouse --chrome-flags='--headless' --output=json --output-path=performance-report.json",
+    "validate": "node scripts/validate-setup.js",
+    "dev:setup": "npm install && cd functions && npm install && cd .. && npm run validate",
+    "clean:cache": "npm cache clean --force && rm -rf node_modules package-lock.json && npm install"
   },
   "eslintConfig": {
     "extends": [

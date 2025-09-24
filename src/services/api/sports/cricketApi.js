@@ -5,10 +5,10 @@
 
 import { BaseSportAdapter, AdapterError, ERROR_CODES } from '../adapters/base';
 
-// Firebase Functions endpoint
+// Firebase Functions API base URL
 const FUNCTIONS_BASE = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:5001/matcharena-app-e3d24/us-central1/sportsApi'
-  : 'https://us-central1-matcharena-app-e3d24.cloudfunctions.net/sportsApi';
+  ? 'http://localhost:5001/matcharena-app-e3d24/us-central1/api'
+  : '/api';
 
 class CricketAPIService extends BaseSportAdapter {
   constructor() {
@@ -35,36 +35,40 @@ class CricketAPIService extends BaseSportAdapter {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...options.headers
         },
         ...options
       });
 
       if (!response.ok) {
-        throw new AdapterError(
-          `Firebase Function request failed: ${response.statusText}`,
-          ERROR_CODES.API_ERROR,
-          { status: response.status, url }
-        );
+        throw new Error(`API response not ok: ${response.status}`);
       }
 
       const result = await response.json();
       
-      if (!result.success) {
-        throw new AdapterError(
-          result.error || 'API request failed',
-          ERROR_CODES.API_ERROR,
-          result
-        );
+      // Handle both API format and direct JSON
+      let data;
+      if (result && typeof result === 'object' && result.success !== undefined) {
+        // API format with success property
+        if (!result.success) {
+          throw new AdapterError(
+            result.error || 'API request failed',
+            ERROR_CODES.API_ERROR,
+            result
+          );
+        }
+        data = result.data || result;
+      } else {
+        // Direct JSON data
+        data = result;
       }
       
       // Cache the response
       this.cache.set(cacheKey, {
-        data: result.data,
+        data: data,
         timestamp: Date.now()
       });
 
-      return result.data;
+      return data;
     } catch (error) {
       console.error('Firebase Function Error:', error);
       
@@ -84,7 +88,7 @@ class CricketAPIService extends BaseSportAdapter {
 
   async getLiveMatches() {
     try {
-      return await this.fetchFromFunction('/cricket/matches/live', 'cricket_live_matches');
+      return await this.fetchFromFunction('/cricket/live', 'cricket_live_matches');
     } catch (error) {
       console.error('Error fetching live cricket matches:', error);
       return [];
@@ -93,7 +97,7 @@ class CricketAPIService extends BaseSportAdapter {
 
   async getUpcomingMatches(_days = 7) {
     try {
-      return await this.fetchFromFunction('/cricket/matches/upcoming', 'cricket_upcoming_matches');
+      return await this.fetchFromFunction('/cricket/upcoming', 'cricket_upcoming_matches');
     } catch (error) {
       console.error('Error fetching upcoming cricket matches:', error);
       return [];
@@ -102,7 +106,7 @@ class CricketAPIService extends BaseSportAdapter {
 
   async getRecentMatches(_days = 7) {
     try {
-      return await this.fetchFromFunction('/cricket/matches/recent', 'cricket_recent_matches');
+      return await this.fetchFromFunction('/cricket/recent', 'cricket_recent_matches');
     } catch (error) {
       console.error('Error fetching recent cricket matches:', error);
       return [];

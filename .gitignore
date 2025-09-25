@@ -22,6 +22,7 @@ ui-debug.log*
 functions/node_modules/
 functions/lib/
 functions/*.log
+functions/.runtimeconfig.json
 emulator-data/
 
 # Environment Variables

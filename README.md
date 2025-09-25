@@ -70,26 +70,13 @@ cd ..
 cp .env.example .env
 ```
 
-Edit `.env` with your Firebase configuration:
-```env
-REACT_APP_FIREBASE_API_KEY=your-api-key
-REACT_APP_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-REACT_APP_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
-REACT_APP_FIREBASE_PROJECT_ID=your-project-id
-# ... other config
-```
+Edit `.env` with your Firebase configuration. See [Firebase Setup Guide](./docs/FIREBASE_SETUP.md) for detailed instructions.
 
-5. **Configure Firebase Functions environment**
-```bash
-# Set API keys for sports data providers
-firebase functions:config:set cric.api_key="YOUR_CRICAPI_KEY"
+5. **Configure Firebase Functions and APIs**
 
-# Set admin emails (comma-separated)
-firebase functions:config:set admin.allowed_emails="admin@example.com,admin2@example.com"
-
-# Optional: Discord webhook for notifications
-firebase functions:config:set discord.webhook="YOUR_DISCORD_WEBHOOK_URL"
-```
+See the comprehensive guides:
+- [API Setup Guide](./docs/API_SETUP.md) - Configure cricket, football, and multi-sport APIs
+- [Firebase Setup Guide](./docs/FIREBASE_SETUP.md) - Complete Firebase configuration
 
 ## 🚀 Development
 
@@ -167,32 +154,47 @@ npm run lint
 
 ```
 matcharena/
-├── src/
-│   ├── components/       # Reusable UI components
-│   ├── pages/            # Page components
-│   ├── services/         # API and Firebase services
-│   │   ├── api/         # Sports API adapters
-│   │   └── firebase/    # Firebase client utilities
-│   ├── hooks/           # Custom React hooks
-│   ├── contexts/        # React contexts (Auth, Theme, etc.)
-│   ├── utils/           # Utility functions
-│   ├── config/          # App configuration
-│   └── styles/          # Global styles
-├── functions/           # Firebase Cloud Functions
-│   ├── src/
-│   │   ├── triggers/   # Database triggers
-│   │   ├── scheduled/  # Scheduled functions
-│   │   └── callable/   # Callable functions
-├── public/             # Static assets
-├── tests/              # Test suites
-│   ├── unit/          # Unit tests
-│   ├── integration/   # Integration tests
-│   ├── e2e/          # End-to-end tests
-│   └── fixtures/      # Test data
-├── scripts/           # Utility scripts
-├── docs/              # Documentation
-│   └── adr/          # Architecture Decision Records
-└── .github/          # GitHub Actions workflows
+├── src/                          # React application source
+│   ├── components/               # Reusable UI components
+│   │   ├── cricket/             # Cricket-specific components
+│   │   ├── football/            # Football-specific components
+│   │   ├── basketball/          # Basketball-specific components
+│   │   └── [shared components]   # Cross-sport components
+│   ├── pages/                   # Page components & routes
+│   ├── services/                # API and Firebase services
+│   │   ├── api/                # Sports API adapters
+│   │   │   ├── adapters/       # Sport-specific API adapters
+│   │   │   └── sports/         # Individual sport APIs
+│   │   └── firebase/           # Firebase client utilities
+│   ├── hooks/                  # Custom React hooks
+│   ├── contexts/               # React contexts (Auth, Theme, etc.)
+│   ├── utils/                  # Utility functions
+│   ├── config/                 # App configuration
+│   └── __tests__/              # Component tests
+├── functions/                   # Firebase Cloud Functions
+│   ├── src/                    # Functions source code
+│   │   ├── api/               # HTTP endpoints
+│   │   ├── services/          # Business logic services
+│   │   ├── mappers/           # Data transformation
+│   │   └── config/            # Functions configuration
+│   └── package.json           # Functions dependencies
+├── public/                     # Static assets
+│   └── api/                   # Static API mock data
+├── tests/                     # Test suites
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   ├── e2e/                 # End-to-end tests (Cypress)
+│   └── fixtures/            # Test data
+├── scripts/                  # Utility scripts
+├── docs/                    # Documentation
+│   ├── README.md           # Documentation index
+│   ├── API_SETUP.md        # API configuration guide
+│   ├── FIREBASE_SETUP.md   # Firebase setup guide
+│   ├── DEPLOYMENT.md       # Deployment instructions
+│   └── adr/               # Architecture Decision Records
+├── .github/                # GitHub Actions workflows
+│   └── workflows/         # CI/CD pipeline definitions
+└── [config files]         # Package.json, Firebase config, etc.
 ```
 
 ## 🔐 Security

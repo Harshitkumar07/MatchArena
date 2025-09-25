@@ -5,19 +5,19 @@
 
 class APIService {
   constructor() {
-    // Static API files on Firebase Hosting (no functions needed)
+    // Firebase Functions API base URL
     this.functionsBase = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000/api'
-      : 'https://matcharena-app-e3d24.web.app/api';
+      ? 'http://localhost:5001/matcharena-app-e3d24/us-central1/api'
+      : '/api';
     
     // Request cache to improve performance
     this.cache = new Map();
-    this.cacheExpiry = 2 * 60 * 1000; // 2 minutes for live data
-    this.standardCacheExpiry = 10 * 60 * 1000; // 10 minutes for static data
+    this.cacheExpiry = 15 * 1000; // 15 seconds for live data
+    this.standardCacheExpiry = 2 * 60 * 1000; // 2 minutes for static data
     
     // Clear any existing cache on initialization
     this.clearCache();
-    console.log('🔥 APIService initialized with Firebase Functions backend');
+    console.log('🚀 APIService initialized with real API integration');
   }
   
   // Clear all cached data
@@ -42,7 +42,7 @@ class APIService {
     }
 
     try {
-      console.log('Making Firebase Function request to:', url);
+      console.log('Making API request to:', url);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -58,18 +58,40 @@ class APIService {
 
       const result = await response.json();
       
-      // Check if the Firebase Function returned success
-      if (!result.success) {
-        throw new Error(result.error || `API request failed for ${endpoint}`);
+      // For static JSON files, the result IS the data we want
+      // Check if it has the expected format
+      if (result && typeof result === 'object') {
+        // If it has success property, it's our API format
+        if (result.success !== undefined) {
+          if (!result.success) {
+            throw new Error(result.error || `API request failed for ${endpoint}`);
+          }
+          
+          // Cache the response data
+          this.cache.set(cacheKey, {
+            data: result.data || result,
+            timestamp: Date.now()
+          });
+
+          return result.data || result;
+        } else {
+          // Direct JSON data
+          this.cache.set(cacheKey, {
+            data: result,
+            timestamp: Date.now()
+          });
+
+          return result;
+        }
       }
       
       // Cache the response data
       this.cache.set(cacheKey, {
-        data: result.data,
+        data: result,
         timestamp: Date.now()
       });
 
-      return result.data;
+      return result;
     } catch (error) {
       console.error('Firebase Function request failed:', endpoint, error);
       
@@ -90,7 +112,7 @@ class APIService {
   async getCricketMatches(type = 'live') {
     try {
       console.log(`🏏 Fetching ${type} cricket matches...`);
-      return await this.makeRequest(`/cricket/matches/${type}.json`, { fallback: [] });
+      return await this.makeRequest(`/cricket/${type}`, { fallback: [] });
     } catch (error) {
       console.error(`Error fetching ${type} cricket matches:`, error);
       return [];
@@ -135,10 +157,9 @@ class APIService {
   // Get fixtures for any sport
   async getSportFixtures(sport, status = null, league = null, season = null) {
     try {
-      let endpoint = `/sports/${sport}/fixtures`;
+      let endpoint = `/sports/${sport}/${status || 'upcoming'}`;
       const params = new URLSearchParams();
       
-      if (status) params.append('status', status);
       if (league) params.append('league', league);  
       if (season) params.append('season', season);
       
@@ -251,7 +272,7 @@ class APIService {
   async getAPIStatus() {
     try {
       console.log('📊 Fetching API status...');
-      return await this.makeRequest('/api/status');
+      return await this.makeRequest('/status');
     } catch (error) {
       console.error('Error fetching API status:', error);
       return { configured: false, error: error.message };
